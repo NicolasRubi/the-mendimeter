@@ -23,14 +23,14 @@ endif()
 
 include(cmake/CPM.cmake)
 
-include("F:/Code/vcpkg/scripts/buildsystems/vcpkg.cmake")
+include("$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
 # Set OpenCVConfig.cmake Search Directory
 set( OpenCV_DIR )
 if( NOT CMAKE_CL_64 )
-  set( OpenCV_DIR "${VCPKG_ROOT}/installed/x86-windows/share/opencv" )
+  set( OpenCV_DIR "$ENV{VCPKG_ROOT}/installed/x86-windows/share/opencv" )
 else()
-  set( OpenCV_DIR "${VCPKG_ROOT}/installed/x64-windows/share/opencv" )
+  set( OpenCV_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/share/opencv" )
 endif()
 
 find_package(OpenCV REQUIRED)
