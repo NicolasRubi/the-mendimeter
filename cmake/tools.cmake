@@ -66,6 +66,7 @@ endif()
 
 # enables CCACHE support through the USE_CCACHE flag possible values are: YES, NO or equivalent
 if(USE_CCACHE)
+  set(CMAKE_C_COMPILER_LAUNCHER sccache CACHE INTERNAL "")
   CPMAddPackage(
     NAME Ccache.cmake
     GITHUB_REPOSITORY TheLartians/Ccache.cmake

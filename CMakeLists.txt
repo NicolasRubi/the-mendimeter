@@ -23,11 +23,25 @@ endif()
 
 include(cmake/CPM.cmake)
 
-CPMAddPackage(
-  NAME OpenCV
-  GITHUB_REPOSITORY opencv/opencv
-  GIT_TAG 4.5.0
-)
+include("F:/Code/vcpkg/scripts/buildsystems/vcpkg.cmake")
+
+# Set OpenCVConfig.cmake Search Directory
+set( OpenCV_DIR )
+if( NOT CMAKE_CL_64 )
+  set( OpenCV_DIR "${VCPKG_ROOT}/installed/x86-windows/share/opencv" )
+else()
+  set( OpenCV_DIR "${VCPKG_ROOT}/installed/x64-windows/share/opencv" )
+endif()
+
+find_package(OpenCV REQUIRED)
+
+if( opencv_FOUND )
+  # Additional Include Directories
+  include_directories( ${OpenCV_INCLUDE_DIRS} )
+
+  # Additional Library Directories
+  link_directories( ${OpenCV_LIB_DIR} )
+endif()
 
 # PackageProject.cmake will be used to make our target installable
 CPMAddPackage(
@@ -35,6 +49,9 @@ CPMAddPackage(
   GITHUB_REPOSITORY TheLartians/PackageProject.cmake
   VERSION 1.3
 )
+
+set(USE_CCACHE YES CACHE INTERNAL "")
+set(ENABLE_CCACHE YES CACHE INTERNAL "")
 
 # ---- Add source files ----
 
@@ -56,12 +73,18 @@ set_target_properties(TheMendimeter PROPERTIES CXX_STANDARD 17)
 # being a cross-platform target, we enforce standards conformance on MSVC
 target_compile_options(TheMendimeter PUBLIC "$<$<BOOL:${MSVC}>:/permissive->")
 
-# Link dependencies (if required) target_link_libraries(TheMendimeter PUBLIC cxxopts)
+# Link dependencies (if required) 
+target_link_libraries(TheMendimeter PUBLIC ${OpenCV_LIBS})
 
 target_include_directories(
   TheMendimeter PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                  $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
+
+add_executable(TheMendimeterApp ${headers} ${sources})
+
+# Link app dependencies (if required) 
+target_link_libraries(TheMendimeterApp LINK_PUBLIC TheMendimeter)
 
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
