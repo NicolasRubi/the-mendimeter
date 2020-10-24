@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      CACHE STRING "")
+endif()
 
 # ---- Project ----
 
@@ -23,7 +27,7 @@ endif()
 
 include(cmake/CPM.cmake)
 
-include("$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+# include("$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
 # Set OpenCVConfig.cmake Search Directory
 set( OpenCV_DIR )
