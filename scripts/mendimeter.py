@@ -73,11 +73,16 @@ def mendimeter():
         # cv.normalize(magR, magR, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
         # cv.normalize(magG, magG, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
         # cv.normalize(magB, magB, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
-        sobelx8u = cv.Sobel(r, cv.CV_8U, 1, 0, ksize=5)
-        sobelx64f = cv.Sobel(r, cv.CV_64F, 1, 0, ksize=5)
+        gray = cv.cvtColor(nimg, cv.COLOR_RGBA2GRAY, 0)
+        gray_8u = cv.normalize(gray, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+        sobelx8u = cv.Sobel(gray_8u, cv.CV_8U, 1, 0, ksize=5)
+        sobelx64f = cv.Sobel(gray_8u, cv.CV_64F, 1, 0, ksize=5)
         sobel_8u = cv.convertScaleAbs(sobelx64f)
-        cv.imshow("sobel of r", sobel_8u)
-        cv.imshow("worse sobel of r", sobelx8u)
+        edges = cv.Canny(gray_8u, 50, 150)
+
+        cv.imshow("Canny edges", edges)
+        cv.imshow("sobel of grayscale", sobel_8u)
+        cv.imshow("worse sobel of grayscale", sobelx8u)
         # Display the resulting frame
         cv.imshow("cropped for dft", frame)
         cv.imshow(
