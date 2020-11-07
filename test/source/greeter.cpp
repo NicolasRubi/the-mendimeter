@@ -1,6 +1,6 @@
-#include <TheMendimeter/TheMendimeter.h>
-#include <TheMendimeter/version.h>
 #include <doctest/doctest.h>
+#include <mendimeter/greeter.h>
+#include <mendimeter/version.h>
 
 #include <string>
 

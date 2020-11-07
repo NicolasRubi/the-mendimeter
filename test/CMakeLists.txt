@@ -21,6 +21,8 @@ CPMAddPackage(
   GIT_TAG 2.3.7
 )
 
+find_package(doctest REQUIRED)
+
 if(TEST_INSTALLED_VERSION)
   find_package(TheMendimeter REQUIRED)
 else()
