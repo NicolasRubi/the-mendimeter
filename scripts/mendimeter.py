@@ -48,21 +48,16 @@ def mendimeter():
         )  # also doing these inplace for performance.
         b_dft = cv.dft(b, flags=cv.DFT_COMPLEX_OUTPUT)
 
+        # Extract magnitude and phase angle.
         magR, angleR = cv.cartToPolar(r_dft.get()[:, :, 0], r_dft.get()[:, :, 1])
         magG, angleG = cv.cartToPolar(g_dft.get()[:, :, 0], g_dft.get()[:, :, 1])
         magB, angleB = cv.cartToPolar(b_dft.get()[:, :, 0], b_dft.get()[:, :, 1])
-
-        # matOfOnes = cv.UMat(np.ones(magR.shape, dtype=magR.dtype))
 
         magR = cv.UMat(magR)
         magG = cv.UMat(magG)
         magB = cv.UMat(magB)
 
         #  switch to logarithmic scale
-        # cv.add(matOfOnes, magR, magR)
-        # cv.add(matOfOnes, magG, magG)
-        # cv.add(matOfOnes, magB, magB)
-        # cv.convertScaleAbs(magR, magR)
         cv.log(magR, magR)
         cv.log(magG, magG)
         cv.log(magB, magB)
@@ -78,7 +73,11 @@ def mendimeter():
         # cv.normalize(magR, magR, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
         # cv.normalize(magG, magG, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
         # cv.normalize(magB, magB, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
-
+        sobelx8u = cv.Sobel(r, cv.CV_8U, 1, 0, ksize=5)
+        sobelx64f = cv.Sobel(r, cv.CV_64F, 1, 0, ksize=5)
+        sobel_8u = cv.convertScaleAbs(sobelx64f)
+        cv.imshow("sobel of r", sobel_8u)
+        cv.imshow("worse sobel of r", sobelx8u)
         # Display the resulting frame
         cv.imshow("cropped for dft", frame)
         cv.imshow(
