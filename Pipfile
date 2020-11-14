@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-black = "*"
+# black = "*"
 pylint = "*"
 
 [packages]
@@ -12,6 +12,11 @@ scikit-build = "*"
 opencv-python = "*"
 jupyter = "*"
 matplotlib = "*"
+# https://pypi.org/project/cvbuilder/
+# cvbuilder = "*"
+numpy = "==1.19.3"
+black = "==20.8b1"
+pyyaml = "*"
 
 [requires]
 python_version = "3.8"
