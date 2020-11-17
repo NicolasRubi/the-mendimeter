@@ -14,9 +14,11 @@ jupyter = "*"
 matplotlib = "*"
 # https://pypi.org/project/cvbuilder/
 # cvbuilder = "*"
+# Until MS fixes the broken fmod() in the Windows C runtime. 
 numpy = "==1.19.3"
 black = "==20.8b1"
 pyyaml = "*"
+pyqt5 = "*"
 
 [requires]
 python_version = "3.8"
