@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
+import yaml
 import random as rng
 
 rng.seed(12345)
@@ -25,18 +26,120 @@ def crop_spectrum(mag):
     return mag
 
 
+def calibrate(source, calibration_file):
+    print(
+        "Please hold up the checkerboard pattern until enough datapoiints are gathered and press c"
+    )
+    pattern_size = (9, 6)
+    pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
+    pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
+    # pattern_points *= square_size
+
+    obj_points = []
+    img_points = []
+    h, w = 0, 0
+    i = -1
+    frame_step = 20
+
+    while True:
+        i += 1
+        if isinstance(source, list):
+            # glob
+            if i == len(source):
+                break
+            img = cv.imread(source[i])
+        else:
+            # cv2.VideoCapture
+            retval, img = source.read()
+            # if not retval:
+            #     break
+            if i % frame_step != 0:
+                continue
+
+        print("Searching for chessboard in frame " + str(i) + "..."),
+        img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        cv.imshow("checker", img)
+
+        if cv.waitKey(1) & 0xFF == ord("c"):
+            break
+
+        h, w = img.shape[:2]
+        found, corners = cv.findChessboardCorners(
+            img, pattern_size, flags=cv.CALIB_CB_FILTER_QUADS
+        )
+        if found:
+            term = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_COUNT, 30, 0.1)
+            cv.cornerSubPix(img, corners, (5, 5), (-1, -1), term)
+        if not found:
+            print("not found")
+            continue
+        img_points.append(corners.reshape(1, -1, 2))
+        obj_points.append(pattern_points.reshape(1, -1, 3))
+
+        print("ok")
+        img_chess = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+        cv.drawChessboardCorners(img_chess, pattern_size, corners, found)
+        cv.imshow("draw on checkerboard", img_chess)
+
+    print("\nPerforming calibration...")
+    rms, camera_matrix, dist_coefs, rvecs, tvecs = cv.calibrateCamera(
+        obj_points, img_points, (w, h), None, None
+    )
+    print("RMS: {}".format(rms))
+    print("camera matrix:\n{}".format(camera_matrix))
+    print("distortion coefficients: {}".format(dist_coefs.ravel()))
+
+    calibration = {
+        "rms": rms,
+        "camera_matrix": camera_matrix.tolist(),
+        "dist_coefs": dist_coefs.tolist(),
+    }
+
+    with open(calibration_file, "w") as fw:
+        yaml.dump(calibration, fw)
+    return (camera_matrix, dist_coefs)
+
+
 def mendimeter():
     cap = cv.VideoCapture(0)
-    thresh = 100  # initial threshold
-    # Create Window
-    source_window = "Source"
-    cv.namedWindow(source_window)
+    # thresh = 100  # initial threshold
+    # # Create Window
+    # source_window = "Source"
+    # cv.namedWindow(source_window)
+    calibration_file_name = "camera_calibration.yml"
+    calibration = {}
+    with open(calibration_file_name, "r") as file:
+        calibration = yaml.load(file, Loader=yaml.FullLoader)
+        print(calibration)
+    if calibration is None:
+        (camera_matrix, dist_coefs) = calibrate(cap, calibration_file_name)
+    else:
+        camera_matrix = calibration.get("camera_matrix")
+        dist_coefs = calibration.get("dist_coefs")
+
+    print(camera_matrix, dist_coefs)
+    camera_matrix = cv.UMat(np.array(camera_matrix))
+    dist_coefs = cv.UMat(np.array(dist_coefs))
+
     while True:
         # Capture frame-by-frame
         ret, frame = cap.read()
         (cols, rows, channels) = frame.shape
+
+        newcameramtx, roi = cv.getOptimalNewCameraMatrix(
+            camera_matrix, dist_coefs, (rows, cols), 1, (rows, cols)
+        )
+
+        undistorted_frame = cv.undistort(
+            frame, camera_matrix, dist_coefs, None, newcameramtx
+        )
+
+        x, y, w, h = roi
+        croped_undistorted_frame = undistorted_frame.get()[y : y + h, x : x + w]
+        (cols, rows, channels) = croped_undistorted_frame.shape
+
         # cv.flip(frame, 1, frame)
-        f_frame = np.float32(frame)
+        f_frame = np.float32(croped_undistorted_frame)
         # upload image to the GPU.
         f_frame = cv.UMat(f_frame)
         cv.flip(f_frame, 1, f_frame)
@@ -47,7 +150,7 @@ def mendimeter():
         nimg = cv.resize(f_frame, (nrows, ncols))
 
         gray = cv.cvtColor(nimg, cv.COLOR_RGBA2GRAY, 0)
-        cv.blur(gray, (3, 3), gray)
+        # cv.blur(gray, (2, 2), gray)
 
         # b, g, r = cv.split(nimg)
 
@@ -91,84 +194,23 @@ def mendimeter():
         # magB = cv.UMat(crop_spectrum(magB.get()))
 
         gray_8u = cv.normalize(gray, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
-        sobelx8u = cv.Sobel(gray_8u, cv.CV_8U, 1, 0, ksize=5)
-        sobelx64f = cv.Sobel(gray_8u, cv.CV_64F, 1, 0, ksize=5)
-        sobel_8u = cv.convertScaleAbs(sobelx64f)
+        # sobelx8u = cv.Sobel(gray_8u, cv.CV_8U, 1, 0, ksize=5)
+        # sobelx64f = cv.Sobel(gray_8u, cv.CV_64F, 1, 0, ksize=5)
+        # sobel_8u = cv.convertScaleAbs(sobelx64f)
 
-        max_thresh = 255
-
-        cv.imshow(source_window, frame)
-
-        def thresh_callback(val, src_gray=gray_8u):
-            threshold = val
-
-            canny_output = cv.Canny(gray_8u, threshold, threshold * 2)
-
-            contours, _ = cv.findContours(
-                canny_output, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE
-            )
-
-            contours_poly = [None] * len(contours)
-            boundRect = [None] * len(contours)
-            centers = [None] * len(contours)
-            radius = [None] * len(contours)
-            for i, c in enumerate(contours):
-                contours_poly[i] = cv.approxPolyDP(c, 3, True)
-                boundRect[i] = cv.boundingRect(contours_poly[i])
-                centers[i], radius[i] = cv.minEnclosingCircle(contours_poly[i])
-
-            shape = canny_output.get().shape
-            drawing = np.zeros((shape[0], shape[1], 3), dtype=np.uint8)
-
-            for i in range(len(contours)):
-                color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
-                cv.drawContours(drawing, contours_poly, i, color)
-                cv.rectangle(
-                    drawing,
-                    (int(boundRect[i][0]), int(boundRect[i][1])),
-                    (
-                        int(boundRect[i][0] + boundRect[i][2]),
-                        int(boundRect[i][1] + boundRect[i][3]),
-                    ),
-                    color,
-                    2,
-                )
-                cv.circle(
-                    drawing,
-                    (int(centers[i][0]), int(centers[i][1])),
-                    int(radius[i]),
-                    color,
-                    2,
-                )
-
-            cv.imshow("Contours", drawing)
-
-        cv.createTrackbar(
-            "Canny thresh:", source_window, thresh, max_thresh, thresh_callback
-        )
         edges = cv.Canny(gray_8u, 75, 150)
 
         cv.imshow("Canny edges", edges)
-        cv.imshow("sobel of grayscale", sobel_8u)
-        cv.imshow("worse sobel of grayscale", sobelx8u)
         # Display the resulting frame
         cv.imshow(
             "cropped for dft",
             cv.normalize(f_frame, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U),
         )
-        # cv.imshow(
-        #     "red channel", cv.normalize(r, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
-        # )
-        # cv.imshow(
-        #     "green channel", cv.normalize(g, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
-        # )
-        # cv.imshow(
-        #     "blue channel", cv.normalize(b, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
-        # )
+
         cv.imshow("dft magnitude spectrum", mag_gray)
-        # cv.imshow("red channel dft magnitude spectrum", magR)
-        # cv.imshow("green channel dft magnitude spectrum", magG)
-        # cv.imshow("blue channel dft magnitude spectrum", magB)
+
+        white_points = cv.findNonZero(edges)
+        white_cpu = white_points.get()
 
         if cv.waitKey(1) & 0xFF == ord("q"):
             break
